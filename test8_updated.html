@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>NCEP 2m Air Temperature — 1948–2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:#000;overflow:hidden;font-family:'Space Mono',monospace;color:#fff}
+  canvas{display:block}
+
+  #loading{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;z-index:999;gap:18px;transition:opacity 0.6s}
+  #loading.fade{opacity:0;pointer-events:none}
+  #loading h1{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:0.1em;color:#ff6b35}
+  #loading p{font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:0.1em;text-transform:uppercase}
+  #prog-bar{width:260px;height:3px;background:rgba(255,255,255,0.1);border-radius:2px}
+  #prog-fill{height:100%;width:0%;background:#ff6b35;border-radius:2px;transition:width 0.3s}
+
+  #date-display{position:absolute;top:20px;left:50%;transform:translateX(-50%);
+    font-family:'Bebas Neue',sans-serif;font-size:clamp(52px,8vw,96px);
+    letter-spacing:0.08em;line-height:1;color:transparent;
+    -webkit-text-stroke:1.5px rgba(255,255,255,0.45);
+    text-shadow:0 0 40px rgba(255,160,60,0.18);pointer-events:none;white-space:nowrap}
+  #data-source{position:absolute;top:calc(22px + clamp(52px,8vw,96px));left:50%;
+    transform:translateX(-50%);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;
+    color:rgba(255,255,255,0.2);pointer-events:none;white-space:nowrap}
+
+  #info{position:absolute;top:20px;left:20px;
+    background:rgba(0,0,0,0.62);border:1px solid rgba(255,255,255,0.1);
+    backdrop-filter:blur(12px);padding:12px 15px;border-radius:11px;
+    font-size:11px;line-height:2;color:rgba(255,255,255,0.75);max-width:240px}
+
+  #legend{position:absolute;left:20px;top:50%;transform:translateY(-50%);
+    background:rgba(0,0,0,0.62);border:1px solid rgba(255,255,255,0.1);
+    backdrop-filter:blur(12px);padding:12px 9px;border-radius:11px;
+    display:flex;flex-direction:column;align-items:center;gap:5px}
+  #legend h3{font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.4)}
+  #leg-cv{width:16px;height:200px;border-radius:3px;border:1px solid rgba(255,255,255,0.12)}
+  .leg-labels{display:flex;flex-direction:column;justify-content:space-between;
+    height:200px;font-size:9px;color:rgba(255,255,255,0.55);line-height:1}
+  #leg-row{display:flex;gap:6px;align-items:stretch}
+  #leg-mode{font-size:8px;color:rgba(255,107,53,0.7);text-align:center;margin-top:2px}
+
+  #top-right{position:absolute;top:20px;right:20px;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+  .tbtn{background:rgba(0,0,0,0.62);border:1px solid rgba(255,255,255,0.14);
+    backdrop-filter:blur(12px);color:rgba(255,255,255,0.7);
+    font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.05em;
+    padding:7px 13px;border-radius:9px;cursor:pointer;white-space:nowrap;
+    transition:background 0.15s,border-color 0.15s;outline:none}
+  .tbtn:hover{background:rgba(255,107,53,0.25);border-color:rgba(255,107,53,0.5);color:#fff}
+  .tbtn.on{background:rgba(255,107,53,0.22);border-color:rgba(255,107,53,0.55);color:#ff6b35}
+
+  #controls{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
+    display:flex;flex-direction:column;align-items:center;gap:10px;width:min(640px,92vw)}
+  #year-track{width:100%;display:flex;align-items:center;gap:8px}
+  .tr-lbl{font-size:9px;color:rgba(255,255,255,0.32);min-width:32px;text-align:center}
+  input[type=range]{flex:1;-webkit-appearance:none;appearance:none;
+    height:3px;border-radius:2px;background:rgba(255,255,255,0.14);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;
+    border-radius:50%;background:#ff6b35;box-shadow:0 0 8px rgba(255,107,53,0.7);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+    background:#ff6b35;border:none;box-shadow:0 0 8px rgba(255,107,53,0.7);cursor:pointer}
+  #month-row{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}
+  .mpill{font-size:9px;padding:3px 8px;border-radius:5px;cursor:pointer;
+    background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
+    color:rgba(255,255,255,0.4);transition:all 0.12s}
+  .mpill:hover{background:rgba(255,107,53,0.2);color:#fff}
+  .mpill.active{background:rgba(255,107,53,0.3);border-color:rgba(255,107,53,0.6);color:#fff}
+  #btn-row{display:flex;align-items:center;gap:9px}
+  .cbtn{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.16);
+    color:#fff;width:36px;height:36px;border-radius:50%;font-size:13px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:background 0.14s,transform 0.1s;outline:none}
+  .cbtn:hover{background:rgba(255,107,53,0.3);border-color:rgba(255,107,53,0.6);transform:scale(1.08)}
+  #btn-play{width:46px;height:46px;font-size:17px;
+    background:rgba(255,107,53,0.2);border-color:rgba(255,107,53,0.5)}
+
+  #chart-panel{position:absolute;bottom:-400px;left:50%;transform:translateX(-50%);
+    width:min(800px,96vw);background:rgba(5,7,15,0.95);border:1px solid rgba(255,255,255,0.11);
+    backdrop-filter:blur(18px);border-radius:16px 16px 0 0;
+    padding:18px 22px 14px;transition:bottom 0.44s cubic-bezier(0.16,1,0.3,1);z-index:10}
+  #chart-panel.open{bottom:130px}
+  #chart-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+  #chart-loc{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:0.06em;color:#fff;line-height:1}
+  #chart-sub{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-top:3px}
+  #chart-stats{text-align:right;font-size:10px;color:rgba(255,255,255,0.45);line-height:1.8}
+  #chart-stats strong{color:rgba(255,255,255,0.9);font-size:13px}
+  #chart-tabs{display:flex;gap:4px;margin-bottom:11px}
+  .ctab{font-size:10px;letter-spacing:0.07em;text-transform:uppercase;
+    padding:5px 12px;border-radius:6px;cursor:pointer;
+    color:rgba(255,255,255,0.38);border:1px solid transparent;transition:all 0.13s}
+  .ctab.active{color:#fff;background:rgba(255,107,53,0.2);border-color:rgba(255,107,53,0.4)}
+  .ctab:hover:not(.active){color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.05)}
+  #chart-wrap{position:relative}
+  #chart-cv{width:100%;height:160px;display:block}
+  #chart-tip{position:absolute;top:0;left:0;background:rgba(0,0,0,0.9);
+    border:1px solid rgba(255,255,255,0.14);padding:5px 9px;border-radius:6px;
+    font-size:10px;pointer-events:none;opacity:0;transition:opacity 0.1s;white-space:nowrap;z-index:20}
+  #close-chart{position:static;background:none;border:none;
+    color:rgba(255,255,255,0.35);font-size:18px;cursor:pointer;line-height:1;flex-shrink:0}
+  #close-chart:hover{color:#fff}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <h1>NCEP Climate</h1>
+  <div id="prog-bar"><div id="prog-fill"></div></div>
+  <p id="load-msg">Loading ncep_data.json.gz…</p>
+</div>
+
+<div id="date-display">— — —</div>
+<div id="data-source">NCEP Reanalysis 1 · 2m Air Temperature · 1948–2026</div>
+<div id="info">Click globe to read temperature<br>Lat / Lon will appear here</div>
+
+<div id="top-right">
+  <button class="tbtn" id="btn-anomaly">⬡ Anomaly mode</button>
+  <button class="tbtn" id="btn-clear">🗑 Clear pins</button>
+</div>
+
+<div id="legend">
+  <h3>°C</h3>
+  <div id="leg-row">
+    <canvas id="leg-cv" width="16" height="200"></canvas>
+    <div class="leg-labels">
+      <span id="leg-top"></span><span id="leg-mid"></span><span id="leg-bot"></span>
+    </div>
+  </div>
+  <div id="leg-mode">absolute</div>
+</div>
+
+<div id="controls">
+  <div id="year-track">
+    <span class="tr-lbl" id="yr-min"></span>
+    <input type="range" id="year-slider">
+    <span class="tr-lbl" id="yr-max"></span>
+  </div>
+  <div id="month-row"></div>
+  <div id="btn-row">
+    <button class="cbtn" id="btn-prev">◀</button>
+    <button class="cbtn" id="btn-play">⏸</button>
+    <button class="cbtn" id="btn-next">▶</button>
+  </div>
+</div>
+
+<div id="chart-panel">
+  <div id="chart-hdr">
+    <div>
+      <div id="chart-loc">SELECT A POINT</div>
+      <div id="chart-sub">NCEP Reanalysis · 2m Air Temperature · Monthly mean</div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:14px">
+      <div id="chart-stats" style="margin-right:14px">
+        <div>Current: <strong id="stat-cur">—</strong></div>
+        <div>1991–2020 mean: <strong id="stat-base">—</strong></div>
+        <div>Anomaly: <strong id="stat-anom">—</strong></div>
+      </div>
+      <button id="close-chart" style="margin-top:-6px">✕</button>
+    </div>
+  </div>
+  <div id="chart-tabs">
+    <div class="ctab active" data-tab="timeseries">Full Time Series</div>
+    <div class="ctab" data-tab="seasonal">Seasonal Cycle</div>
+    <div class="ctab" data-tab="anomaly">Anomaly History</div>
+  </div>
+  <div id="chart-wrap">
+    <canvas id="chart-cv"></canvas>
+    <div id="chart-tip"></div>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+
+// ═══════════════════════════════════════════════════════════════════
+//  ZERO HARDCODED VALUES — everything read from ncep_data.json.gz
+// ═══════════════════════════════════════════════════════════════════
+
+// ── helpers ──────────────────────────────────────────────────────────
+const $  = id => document.getElementById(id)
+const setMsg  = m => $('load-msg').textContent  = m
+const setFill = p => $('prog-fill').style.width = p + '%'
+
+function b64toU8(str) {
+  const bin=atob(str), u8=new Uint8Array(bin.length)
+  for (let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i)
+  return u8
+}
+
+// ── Fetch + decompress ncep_data.json.gz ─────────────────────────────
+setMsg('Fetching data file…')
+const resp  = await fetch('/ncep_data.json.gz')
+const clen  = +resp.headers.get('content-length') || 0
+const reader= resp.body.getReader()
+const parts = []; let rx = 0
+while (true) {
+  const {done,value} = await reader.read()
+  if (done) break
+  parts.push(value); rx += value.length
+  if (clen) setFill(Math.round(rx/clen*40))
+}
+const gz = new Uint8Array(rx); let off=0
+for (const p of parts) { gz.set(p,off); off+=p.length }
+
+setMsg('Decompressing…'); setFill(50)
+const ds = new DecompressionStream('gzip')
+const dw = ds.writable.getWriter(), dr = ds.readable.getReader()
+dw.write(gz); dw.close()
+const jparts=[]; while(true){const{done,value}=await dr.read();if(done)break;jparts.push(value)}
+const jbytes=new Uint8Array(jparts.reduce((a,b)=>a+b.length,0)); let jo=0
+for (const p of jparts){jbytes.set(p,jo);jo+=p.length}
+
+setMsg('Parsing…'); setFill(75)
+// ── NC is the ONLY source of truth — no hardcoded numbers anywhere ───
+const NC = JSON.parse(new TextDecoder().decode(jbytes))
+
+// Destructure everything directly from NC
+const { lats, lons, times, tmin, tmax, nlat, nlon, nt, baseline } = NC
+const SPAN = tmax - tmin
+const GRID = nlat * nlon
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+// Decode main data blob
+const _raw  = b64toU8(NC.data_b64)   // uint8 (nt * nlat * nlon)
+
+// Decode baseline float32 grids (one per month "01".."12")
+const _base = {}
+for (const [k,b64] of Object.entries(baseline)) {
+  const bytes = b64toU8(b64)
+  _base[k]   = new Float32Array(bytes.buffer)
+}
+
+setFill(90); setMsg('Building globe…')
+
+// ── Data accessors — all bounds from NC ──────────────────────────────
+function rawVal(ti, li, lj) {
+  return tmin + (_raw[ti*GRID + li*nlon + lj] / 255) * SPAN
+}
+function baseVal(mo_str, li, lj) {
+  const g=_base[mo_str]; return g ? g[li*nlon+lj] : null
+}
+function nearestIdx(arr, v) {
+  let b=0, bd=1e9
+  for (let i=0;i<arr.length;i++){const d=Math.abs(arr[i]-v);if(d<bd){bd=d;b=i}}
+  return b
+}
+function sampleLL(ti, lat, lon) {
+  const lo=((lon%360)+360)%360
+  return rawVal(ti, nearestIdx(lats,lat), nearestIdx(lons,lo))
+}
+function timeSeriesLL(lat, lon) {
+  const lo=((lon%360)+360)%360
+  const li=nearestIdx(lats,lat), lj=nearestIdx(lons,lo)
+  return Array.from({length:nt},(_,ti)=>rawVal(ti,li,lj))
+}
+function seasonalLL(lat, lon) {
+  const lo=((lon%360)+360)%360
+  const li=nearestIdx(lats,lat), lj=nearestIdx(lons,lo)
+  const sums=new Array(12).fill(0), cnts=new Array(12).fill(0)
+  for(let ti=0;ti<nt;ti++){
+    const mo=parseInt(times[ti].slice(5,7))-1
+    sums[mo]+=rawVal(ti,li,lj); cnts[mo]++
+  }
+  return sums.map((s,i)=>cnts[i]?s/cnts[i]:null)
+}
+function anomSeriesLL(lat, lon) {
+  const lo=((lon%360)+360)%360
+  const li=nearestIdx(lats,lat), lj=nearestIdx(lons,lo)
+  return Array.from({length:nt},(_,ti)=>{
+    const val=rawVal(ti,li,lj), bv=baseVal(times[ti].slice(5,7),li,lj)
+    return bv!==null?val-bv:0
+  })
+}
+
+// ── Year / month helpers ─────────────────────────────────────────────
+const uniqueYears = [...new Set(times.map(t=>t.slice(0,4)))].sort()
+function timeIdx(yr, mo) {
+  const i = times.indexOf(`${yr}-${mo}`); return i>=0?i:null
+}
+
+// ── Colour ramp — bounds always from tmin/tmax or anomaly range ───────
+function tempRGB(t, lo, hi) {
+  const f=Math.max(0,Math.min(1,(t-lo)/(hi-lo||1)))
+  let r,g,b
+  if      (f<0.15){const x=f/.15;       r=Math.round(x*0);    g=Math.round(x*160); b=Math.round(180+x*75)}
+  else if (f<0.35){const x=(f-.15)/.20; r=Math.round(x*40);   g=Math.round(160+x*60);b=Math.round(255-x*80)}
+  else if (f<0.55){const x=(f-.35)/.20; r=Math.round(40+x*215);g=Math.round(220+x*20);b=Math.round(175-x*175)}
+  else if (f<0.75){const x=(f-.55)/.20; r=255;                 g=Math.round(240-x*170);b=0}
+  else            {const x=(f-.75)/.25; r=Math.round(255-x*55);g=Math.round(70-x*70); b=0}
+  return [r,g,b]
+}
+function tc(t,lo,hi){const[r,g,b]=tempRGB(t,lo,hi);return`rgb(${r},${g},${b})`}
+
+// ── Legend — labels read from NC ──────────────────────────────────────
+function drawLegend(lo, hi, label) {
+  const cv=$('leg-cv'), ctx=cv.getContext('2d')
+  for(let py=0;py<200;py++){
+    const t=hi-(py/200)*(hi-lo);const[r,g,b]=tempRGB(t,lo,hi)
+    ctx.fillStyle=`rgb(${r},${g},${b})`;ctx.fillRect(0,py,16,1)
+  }
+  $('leg-top').textContent=Math.round(hi)+'°'
+  $('leg-mid').textContent=Math.round((lo+hi)/2)+'°'
+  $('leg-bot').textContent=Math.round(lo)+'°'
+  $('leg-mode').textContent=label
+}
+
+// ── Build heatmap texture from grid data ──────────────────────────────
+const TEX_W=1024, TEX_H=512
+const texCache = new Map()
+const ANOM_LO=-6, ANOM_HI=6   // fixed anomaly scale ±6°C
+
+function buildHeatCanvas(ti, anomMode) {
+  const key=ti+(anomMode?'A':'')
+  if(texCache.has(key))return texCache.get(key)
+
+  const img=new ImageData(TEX_W,TEX_H), d=img.data
+  const mo_s=times[ti].slice(5,7)
+  const bg=_base[mo_s]
+  const lo=anomMode?ANOM_LO:tmin
+  const hi=anomMode?ANOM_HI:tmax
+  const latStep=Math.abs(lats[0]-lats[1])||2
+
+  for(let py=0;py<TEX_H;py++){
+    const lat=90-(py/TEX_H)*180
+    let li=Math.floor((lats[0]-lat)/latStep)
+    li=Math.max(0,Math.min(li,nlat-2)); const li1=li+1
+    const dy=(lats[li]-lat)/(lats[li]-lats[li1]||1)
+
+    for(let px=0;px<TEX_W;px++){
+      const lon360=((px/TEX_W)*360+180)%360
+      const lonStep=lons[1]-lons[0]||3.75
+      let lj=Math.floor(lon360/lonStep)%nlon; const lj1=(lj+1)%nlon
+      const dx=(lon360-lons[lj])/(lons[(lj+1)%nlon]>lons[lj]?lons[(lj+1)%nlon]-lons[lj]:lonStep)
+
+      const v=(l,j)=>rawVal(ti,l,j%nlon)
+      let t=v(li,lj)*(1-dy)*(1-dx)+v(li,lj1)*(1-dy)*dx
+           +v(li1,lj)*dy*(1-dx)   +v(li1,lj1)*dy*dx
+
+      if(anomMode&&bg){
+        const bv=(l,j)=>bg[l*nlon+j%nlon]
+        const bval=bv(li,lj)*(1-dy)*(1-dx)+bv(li,lj1)*(1-dy)*dx
+                  +bv(li1,lj)*dy*(1-dx)   +bv(li1,lj1)*dy*dx
+        t=t-bval
+      }
+
+      const[r,g,b]=tempRGB(t,lo,hi)
+      const idx=(py*TEX_W+px)*4
+      d[idx]=r;d[idx+1]=g;d[idx+2]=b;d[idx+3]=215
+    }
+  }
+  const cv=document.createElement('canvas');cv.width=TEX_W;cv.height=TEX_H
+  cv.getContext('2d').putImageData(img,0,0)
+  texCache.set(key,cv); return cv
+}
+
+// ── THREE.js ──────────────────────────────────────────────────────────
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x000308)
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,0.1,1000)
+camera.position.set(0,0,2.8)
+const renderer=new THREE.WebGLRenderer({antialias:true})
+renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2))
+document.body.appendChild(renderer.domElement)
+const orb=new OrbitControls(camera,renderer.domElement)
+orb.enableDamping=true;orb.dampingFactor=0.05;orb.autoRotate=true;orb.autoRotateSpeed=0.28
+orb.minDistance=1.5;orb.maxDistance=8
+
+const sv=new Float32Array(5000*3)
+for(let i=0;i<sv.length;i+=3){const v=new THREE.Vector3().randomDirection().multiplyScalar(350+Math.random()*150);sv[i]=v.x;sv[i+1]=v.y;sv[i+2]=v.z}
+const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.Float32BufferAttribute(sv,3))
+scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:0.35,sizeAttenuation:true})))
+const dl=new THREE.DirectionalLight(0xfff4e0,1.8);dl.position.set(5,3,5);scene.add(dl)
+scene.add(new THREE.AmbientLight(0x223355,2.2))
+
+const tl=new THREE.TextureLoader();tl.setCrossOrigin('anonymous')
+const earthTex=tl.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg')
+const globeMat=new THREE.ShaderMaterial({
+  uniforms:{uEarth:{value:earthTex},uHeat:{value:null},uBlend:{value:0}},
+  vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader:`uniform sampler2D uEarth,uHeat;uniform float uBlend;varying vec2 vUv;
+    void main(){vec4 e=texture2D(uEarth,vUv),h=texture2D(uHeat,vUv);
+      float l=dot(e.rgb,vec3(.299,.587,.114));
+      vec3 ov=h.rgb*(l*1.3+.2);
+      gl_FragColor=vec4(mix(e.rgb,ov,uBlend*h.a),1.);}`
+})
+const globe=new THREE.Mesh(new THREE.SphereGeometry(1,64,64),globeMat);scene.add(globe)
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(1.12,48,48),
+  new THREE.MeshBasicMaterial({color:new THREE.Color(.1,.3,.9),transparent:true,opacity:.07,side:THREE.BackSide,depthWrite:false})))
+
+// pin — minimal glowing dot
+const pinC=document.createElement('canvas');pinC.width=pinC.height=64
+const pc=pinC.getContext('2d'),cx=32,cy=32
+// outer glow
+const grd=pc.createRadialGradient(cx,cy,2,cx,cy,28)
+grd.addColorStop(0,'rgba(255,107,53,0.9)')
+grd.addColorStop(0.35,'rgba(255,107,53,0.35)')
+grd.addColorStop(1,'rgba(255,107,53,0)')
+pc.fillStyle=grd;pc.beginPath();pc.arc(cx,cy,28,0,Math.PI*2);pc.fill()
+// crisp centre dot
+pc.fillStyle='#ffffff';pc.beginPath();pc.arc(cx,cy,5,0,Math.PI*2);pc.fill()
+// thin orange ring
+pc.strokeStyle='rgba(255,107,53,1)';pc.lineWidth=1.5
+pc.beginPath();pc.arc(cx,cy,9,0,Math.PI*2);pc.stroke()
+const PIN_TEX=new THREE.CanvasTexture(pinC)
+
+// ── App state ─────────────────────────────────────────────────────────
+let curTi=0, curYear=uniqueYears[0], curMo='01'
+let isPlaying=true, anomMode=false
+let blendT=0, blendN=0
+let pinLat=null, pinLon=null, activeTab='timeseries'
+const markers=[], threeCache=new Map()
+
+// ── Build controls from NC data (no hardcoded years/months) ──────────
+// Year slider
+const ySlider=$('year-slider')
+ySlider.min=0; ySlider.max=uniqueYears.length-1; ySlider.step=1; ySlider.value=0
+$('yr-min').textContent=uniqueYears[0]
+$('yr-max').textContent=uniqueYears[uniqueYears.length-1]
+
+// Month pills — built from MONTHS_SHORT, 12 items
+$('month-row').innerHTML=''
+MONTHS_SHORT.forEach((m,i)=>{
+  const mo_s=String(i+1).padStart(2,'0')
+  const p=document.createElement('div')
+  p.className='mpill'+(mo_s==='01'?' active':'')
+  p.textContent=m; p.dataset.mo=mo_s
+  p.addEventListener('click',()=>{
+    document.querySelectorAll('.mpill').forEach(x=>x.classList.remove('active'))
+    p.classList.add('active'); curMo=mo_s
+    const ti=timeIdx(curYear,curMo); if(ti!==null){curTi=ti;showFrame(ti)}
+    if(pinLat!==null)refreshChart()
+  })
+  $('month-row').appendChild(p)
+})
+
+// ── THREE texture helper ──────────────────────────────────────────────
+function getThreeTex(ti,anom){
+  const key=ti+(anom?'A':'')
+  if(threeCache.has(key))return threeCache.get(key)
+  const t=new THREE.CanvasTexture(buildHeatCanvas(ti,anom)); threeCache.set(key,t); return t
+}
+
+// ── showFrame — drives everything from ti (no hardcoded values) ───────
+function showFrame(ti) {
+  curTi=ti
+  const yr=times[ti].slice(0,4), mo=times[ti].slice(5,7)
+  $('date-display').textContent=`${MONTHS_SHORT[parseInt(mo)-1]} ${yr}`
+  // sync year slider
+  const yi=uniqueYears.indexOf(yr); if(yi>=0){ySlider.value=yi;curYear=yr}
+  // sync month pills
+  curMo=mo
+  document.querySelectorAll('.mpill').forEach(p=>p.classList.toggle('active',p.dataset.mo===mo))
+  // texture
+  globeMat.uniforms.uHeat.value=getThreeTex(ti,anomMode)
+  blendT=0.9
+  // legend — bounds from NC
+  if(anomMode) drawLegend(ANOM_LO,ANOM_HI,'anomaly vs 1991–2020')
+  else         drawLegend(tmin,tmax,'absolute °C')
+  // pre-warm
+  setTimeout(()=>getThreeTex((ti+1)%nt,anomMode),60)
+  setTimeout(()=>getThreeTex((ti-1+nt)%nt,anomMode),300)
+}
+
+// ── Playback ──────────────────────────────────────────────────────────
+let timer=null
+function schedule(){
+  clearTimeout(timer); if(!isPlaying)return
+  timer=setTimeout(()=>{showFrame((curTi+1)%nt);if(pinLat!==null)refreshChart();schedule()},500)
+}
+const btnPlay=$('btn-play')
+btnPlay.addEventListener('click',()=>{isPlaying=!isPlaying;btnPlay.textContent=isPlaying?'⏸':'▶';orb.autoRotate=isPlaying;schedule()})
+$('btn-prev').addEventListener('click',()=>{showFrame((curTi-1+nt)%nt);if(pinLat!==null)refreshChart();schedule()})
+$('btn-next').addEventListener('click',()=>{showFrame((curTi+1)%nt);if(pinLat!==null)refreshChart();schedule()})
+ySlider.addEventListener('input',()=>{
+  curYear=uniqueYears[+ySlider.value]
+  const ti=timeIdx(curYear,curMo); if(ti!==null){curTi=ti;showFrame(ti);if(pinLat!==null)refreshChart()}
+  schedule()
+})
+$('btn-anomaly').addEventListener('click',function(){
+  anomMode=!anomMode;this.classList.toggle('on',anomMode)
+  threeCache.clear(); showFrame(curTi); if(pinLat!==null)refreshChart()
+})
+
+// ── Chart drawing — all ranges from NC ───────────────────────────────
+const chartCv=$('chart-cv'), ctip=$('chart-tip')
+
+function drawTimeSeries(series) {
+  const W=chartCv.offsetWidth,H=160,dpr=devicePixelRatio||1
+  chartCv.width=W*dpr;chartCv.height=H*dpr;chartCv.style.height=H+'px'
+  const ctx=chartCv.getContext('2d');ctx.scale(dpr,dpr)
+  const PL=44,PR=12,PT=14,PB=26,cW=W-PL-PR,cH=H-PT-PB
+  const mn=Math.min(...series)-1, mx=Math.max(...series)+1
+  const toX=i=>PL+cW*(i/(series.length-1||1))
+  const toY=v=>PT+cH*(1-(v-mn)/(mx-mn||1))
+  ctx.clearRect(0,0,W,H)
+  const step=(mx-mn)>30?10:5
+  for(let t=Math.ceil(mn/step)*step;t<=mx;t+=step){
+    const y=toY(t);ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=1
+    ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(W-PR,y);ctx.stroke()
+    ctx.fillStyle='rgba(255,255,255,0.25)';ctx.font='9px Space Mono,monospace';ctx.textAlign='right'
+    ctx.fillText(t.toFixed(0)+'°',PL-4,y+3)
+  }
+  if(mn<0&&mx>0){ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(PL,toY(0));ctx.lineTo(W-PR,toY(0));ctx.stroke();ctx.setLineDash([])}
+  // year tick every 10 years — years come from NC.times
+  const seen=new Set()
+  times.forEach((t,i)=>{const yr=t.slice(0,4);if(yr.slice(-1)==='0'&&!seen.has(yr)){seen.add(yr);const x=toX(i);ctx.strokeStyle='rgba(255,255,255,0.07)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,PT);ctx.lineTo(x,H-PB);ctx.stroke();ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='8px Space Mono,monospace';ctx.textAlign='center';ctx.fillText(yr,x,H-6)}})
+  // gradient fill
+  const g=ctx.createLinearGradient(0,PT,0,H-PB)
+  g.addColorStop(0,'rgba(255,107,53,0.3)');g.addColorStop(1,'rgba(255,107,53,0.02)')
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(toX(0),toY(mn))
+  series.forEach((v,i)=>ctx.lineTo(toX(i),toY(v)))
+  ctx.lineTo(toX(series.length-1),toY(mn));ctx.closePath();ctx.fill()
+  // line
+  ctx.lineWidth=1.5
+  for(let i=1;i<series.length;i++){ctx.strokeStyle=tc(series[i],mn,mx);ctx.beginPath();ctx.moveTo(toX(i-1),toY(series[i-1]));ctx.lineTo(toX(i),toY(series[i]));ctx.stroke()}
+  // current marker
+  const cx=toX(curTi);ctx.strokeStyle='rgba(255,107,53,0.9)';ctx.lineWidth=1.5;ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(cx,PT);ctx.lineTo(cx,H-PB);ctx.stroke();ctx.setLineDash([])
+  ctx.fillStyle='#ff6b35';ctx.beginPath();ctx.arc(cx,toY(series[curTi]),4,0,Math.PI*2);ctx.fill()
+  chartCv._s=series;chartCv._sl={toX,toY,W,H,PL,cW,mn,mx}
+}
+
+function drawSeasonal(vals) {
+  const W=chartCv.offsetWidth,H=160,dpr=devicePixelRatio||1
+  chartCv.width=W*dpr;chartCv.height=H*dpr;chartCv.style.height=H+'px'
+  const ctx=chartCv.getContext('2d');ctx.scale(dpr,dpr)
+  const PL=42,PR=10,PT=14,PB=24,cW=W-PL-PR,cH=H-PT-PB
+  const valid=vals.filter(v=>v!==null)
+  const mn=Math.min(...valid)-2,mx=Math.max(...valid)+2
+  const toY=v=>PT+cH*(1-(v-mn)/(mx-mn||1)),barW=cW/12
+  ctx.clearRect(0,0,W,H)
+  const step=(mx-mn)>25?10:5
+  for(let t=Math.ceil(mn/step)*step;t<=mx;t+=step){const y=toY(t);ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(W-PR,y);ctx.stroke();ctx.fillStyle='rgba(255,255,255,0.28)';ctx.font='9px Space Mono,monospace';ctx.textAlign='right';ctx.fillText(t.toFixed(0)+'°',PL-4,y+3)}
+  if(mn<0&&mx>0){ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(PL,toY(0));ctx.lineTo(W-PR,toY(0));ctx.stroke();ctx.setLineDash([])}
+  const curMoIdx=parseInt(curMo)-1
+  vals.forEach((t,i)=>{if(t===null)return;const x=PL+i*barW+barW*.1,bw=barW*.8,y=toY(t),bh=toY(mn)-y;ctx.fillStyle=tc(t,mn,mx);ctx.beginPath();ctx.roundRect(x,y,bw,Math.max(bh,1),[3,3,0,0]);ctx.fill();ctx.fillStyle='rgba(255,255,255,.45)';ctx.font='8px Space Mono,monospace';ctx.textAlign='center';ctx.fillText(MONTHS_SHORT[i],PL+i*barW+barW/2,H-5);ctx.fillStyle='rgba(255,255,255,.8)';ctx.font='8px Space Mono,monospace';ctx.fillText(t.toFixed(1),PL+i*barW+barW/2,y-3)})
+  ctx.strokeStyle='rgba(255,107,53,0.85)';ctx.lineWidth=1.5;ctx.strokeRect(PL+curMoIdx*barW+barW*.06,PT-2,barW*.88,cH+4)
+  chartCv._seas=vals;chartCv._seL={PL,barW,H,mn,mx}
+}
+
+function drawAnomalySeries(anom_series) {
+  const W=chartCv.offsetWidth,H=160,dpr=devicePixelRatio||1
+  chartCv.width=W*dpr;chartCv.height=H*dpr;chartCv.style.height=H+'px'
+  const ctx=chartCv.getContext('2d');ctx.scale(dpr,dpr)
+  const PL=44,PR=12,PT=14,PB=26,cW=W-PL-PR,cH=H-PT-PB
+  const mn=Math.min(...anom_series)-.5,mx=Math.max(...anom_series)+.5
+  const toX=i=>PL+cW*(i/(anom_series.length-1||1))
+  const toY=v=>PT+cH*(1-(v-mn)/(mx-mn||1))
+  ctx.clearRect(0,0,W,H)
+  ctx.strokeStyle='rgba(255,255,255,0.25)';ctx.setLineDash([5,3]);ctx.lineWidth=1
+  ctx.beginPath();ctx.moveTo(PL,toY(0));ctx.lineTo(W-PR,toY(0));ctx.stroke();ctx.setLineDash([])
+  ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='9px Space Mono,monospace';ctx.textAlign='right';ctx.fillText('0°',PL-4,toY(0)+3)
+  const seen=new Set()
+  times.forEach((t,i)=>{const yr=t.slice(0,4);if(yr.slice(-1)==='0'&&!seen.has(yr)){seen.add(yr);const x=toX(i);ctx.strokeStyle='rgba(255,255,255,0.07)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,PT);ctx.lineTo(x,H-PB);ctx.stroke();ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='8px Space Mono,monospace';ctx.textAlign='center';ctx.fillText(yr,x,H-6)}})
+  const bW=Math.max(1,cW/anom_series.length*.8)
+  anom_series.forEach((v,i)=>{const x=toX(i)-bW/2,y0=toY(0);ctx.fillStyle=v>=0?'rgba(220,60,40,0.7)':'rgba(60,120,220,0.7)';ctx.fillRect(x,v>=0?toY(v):y0,bW,Math.abs(toY(v)-y0)||1)})
+  // 5-year smooth
+  const smooth=anom_series.map((_,i)=>{const s=anom_series.slice(Math.max(0,i-60),i+1);return s.reduce((a,b)=>a+b,0)/s.length})
+  ctx.lineWidth=2;ctx.strokeStyle='rgba(255,220,100,0.9)';ctx.beginPath()
+  smooth.forEach((v,i)=>{i?ctx.lineTo(toX(i),toY(v)):ctx.moveTo(toX(i),toY(v))});ctx.stroke()
+  const cx=toX(curTi);ctx.strokeStyle='rgba(255,107,53,0.9)';ctx.setLineDash([4,3]);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cx,PT);ctx.lineTo(cx,H-PB);ctx.stroke();ctx.setLineDash([])
+  chartCv._anom=anom_series;chartCv._anL={toX,toY,W,H,PL,cW}
+}
+
+function refreshChart() {
+  if(pinLat===null)return
+  const lo=((pinLon%360)+360)%360
+  const li=nearestIdx(lats,pinLat),lj=nearestIdx(lons,lo)
+  const curT=rawVal(curTi,li,lj)
+  const mo_s=times[curTi].slice(5,7)
+  const bval=baseVal(mo_s,li,lj)
+  const anom=bval!==null?curT-bval:null
+  const dispLo=anomMode?ANOM_LO:tmin, dispHi=anomMode?ANOM_HI:tmax
+  $('stat-cur').textContent=curT.toFixed(2)+'°C'
+  $('stat-base').textContent=bval!==null?bval.toFixed(2)+'°C':'—'
+  $('stat-anom').textContent=anom!==null?(anom>=0?'+':'')+anom.toFixed(2)+'°C':'—'
+  $('stat-anom').style.color=anom>0?'#f55':'#5af'
+  if(activeTab==='timeseries')       drawTimeSeries(timeSeriesLL(pinLat,pinLon))
+  else if(activeTab==='seasonal')    drawSeasonal(seasonalLL(pinLat,pinLon))
+  else                               drawAnomalySeries(anomSeriesLL(pinLat,pinLon))
+}
+
+// chart tabs
+document.querySelectorAll('.ctab').forEach(t=>{
+  t.addEventListener('click',()=>{document.querySelectorAll('.ctab').forEach(x=>x.classList.remove('active'));t.classList.add('active');activeTab=t.dataset.tab;refreshChart()})
+})
+// chart tooltip
+chartCv.addEventListener('mousemove',e=>{
+  const r=chartCv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top
+  if(activeTab==='timeseries'&&chartCv._sl){
+    const{toX,PL,cW}=chartCv._sl,i=Math.round((mx-PL)/cW*(chartCv._s.length-1))
+    if(i>=0&&i<chartCv._s.length){ctip.style.opacity='1';ctip.style.left=(mx+10)+'px';ctip.style.top=(my-30)+'px';ctip.textContent=`${times[i]}: ${chartCv._s[i].toFixed(2)}°C`}
+  }else if(activeTab==='seasonal'&&chartCv._seL){
+    const{PL,barW}=chartCv._seL,i=Math.floor((mx-PL)/barW)
+    if(i>=0&&i<12&&chartCv._seas[i]!==null){ctip.style.opacity='1';ctip.style.left=(mx+10)+'px';ctip.style.top=(my-30)+'px';ctip.textContent=`${MONTHS_SHORT[i]}: ${chartCv._seas[i].toFixed(2)}°C`}
+  }else if(activeTab==='anomaly'&&chartCv._anL){
+    const{toX,PL,cW}=chartCv._anL,i=Math.round((mx-PL)/cW*(chartCv._anom.length-1))
+    if(i>=0&&i<chartCv._anom.length){ctip.style.opacity='1';ctip.style.left=(mx+10)+'px';ctip.style.top=(my-30)+'px';ctip.textContent=`${times[i]}: ${chartCv._anom[i]>=0?'+':''}${chartCv._anom[i].toFixed(2)}°C`}
+  }
+})
+chartCv.addEventListener('mouseleave',()=>ctip.style.opacity='0')
+$('close-chart').addEventListener('click',()=>$('chart-panel').classList.remove('open'))
+
+// ── Click to pin ──────────────────────────────────────────────────────
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2()
+function xyz2ll(p){const r=p.length(),lat=Math.asin(p.y/r)*180/Math.PI;let lon=Math.atan2(p.z,-p.x)*180/Math.PI-180;if(lon<-180)lon+=360;return{lat,lon}}
+async function revgeo(lat,lon){try{const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,{headers:{'Accept-Language':'en'}});const d=await r.json(),a=d.address||{};return(a.city||a.town||a.village||a.county||'')+(a.country?', '+a.country:'')}catch{return''}}
+
+window.addEventListener('click',async e=>{
+  if(e.target!==renderer.domElement)return
+  mouse.x=(e.clientX/innerWidth)*2-1;mouse.y=-(e.clientY/innerHeight)*2+1
+  ray.setFromCamera(mouse,camera)
+  const hits=ray.intersectObject(globe);if(!hits.length)return
+  const{lat,lon}=xyz2ll(hits[0].point.clone())
+  pinLat=lat;pinLon=lon
+
+  // ── Send lat/lon to Flask ──────────────────────────────────────────
+  fetch('/location', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lat: lat, lon: lon })
+  })
+  .then(r => r.json())
+  .then(data => {
+    console.log('Flask received:', data)
+    // Open Streamlit scatter plot in a popup window
+    window.open(
+      'http://localhost:8501',
+      'ScatterPlot',
+      'width=900,height=650,resizable=yes,scrollbars=yes,toolbar=no,menubar=no'
+    )
+  })
+  .catch(err => console.error('Flask error:', err))
+
+  const mat=new THREE.SpriteMaterial({map:PIN_TEX,transparent:true,alphaTest:.01,depthTest:false,sizeAttenuation:true})
+  const sp=new THREE.Sprite(mat);const SC=0.10
+  sp.scale.set(SC,SC,SC);sp.position.copy(hits[0].point).addScaledVector(hits[0].point.clone().normalize(),SC*.3)
+  globe.add(sp);markers.push(sp)
+  const t=sampleLL(curTi,lat,lon)
+  const dlo=anomMode?ANOM_LO:tmin,dhi=anomMode?ANOM_HI:tmax
+  $('info').innerHTML=`Lat: ${lat.toFixed(2)}°  Lon: ${lon.toFixed(2)}°<br><b style="color:${tc(t,dlo,dhi)}">${t.toFixed(2)}°C</b> · ${times[curTi]}<br><span style="color:rgba(255,255,255,.35);font-size:10px">looking up…</span>`
+  $('chart-panel').classList.add('open')
+  $('chart-loc').textContent=`${lat.toFixed(2)}°, ${lon.toFixed(2)}°`
+  refreshChart()
+  const place=await revgeo(lat,lon)
+  if(place){$('info').innerHTML=`Lat: ${lat.toFixed(2)}°  Lon: ${lon.toFixed(2)}°<br><b style="color:${tc(t,dlo,dhi)}">${t.toFixed(2)}°C</b> · ${times[curTi]}<br>📍 ${place}`;$('chart-loc').textContent=place}
+})
+
+$('btn-clear').addEventListener('click',()=>{
+  markers.forEach(s=>{globe.remove(s);s.material.dispose()});markers.length=0
+  pinLat=null;pinLon=null
+  $('info').innerHTML='Click globe to read temperature<br>Lat / Lon will appear here'
+  $('chart-panel').classList.remove('open')
+})
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);refreshChart()})
+
+// ── Render loop ───────────────────────────────────────────────────────
+;(function tick(){requestAnimationFrame(tick);blendN+=(blendT-blendN)*.06;globeMat.uniforms.uBlend.value=blendN;orb.update();renderer.render(scene,camera)})()
+
+// ── Boot — fade loading, start globe ─────────────────────────────────
+setFill(100)
+await new Promise(r=>setTimeout(r,200))
+$('loading').classList.add('fade')
+setTimeout(()=>$('loading').style.display='none',700)
+showFrame(0); schedule()
+</script>
+</body>
+</html>
