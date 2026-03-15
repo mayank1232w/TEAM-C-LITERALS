@@ -83,8 +83,7 @@ Run the HTML file in a browser
 
 git clone <repo-link>
 cd project-folder
-run a Python server <python -m http.server 8000>
-open index.html
+streamlit run app.py
 
 or use the deployed version.
 
