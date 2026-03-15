@@ -1,120 +1,60 @@
-🌍 TEAM-C-LITERALS — Hot Today?
+# 🌍 TEAM-C-LITERALS — **Hot Today?**
 
-Hot Today? is an interactive globe visualization that allows users to explore global temperature data directly on a 3D Earth model. Users can select any location on the globe to view its coordinates, temperature information, and historical trends.
+**Hot Today?** is an interactive 3D globe visualization that lets you explore global temperature data directly on a realistic Earth model.  
+Click any location to instantly view its coordinates, temperature information, and historical trends.
 
-The project provides two different data views and interactive tools to help users explore climate patterns easily.
+The project offers two powerful data views and intuitive tools to make climate exploration simple, visual, and engaging.
 
-✨ Features
-🌎 Interactive Globe
+---
 
-A 3D globe interface representing Earth.
+## ✨ Features
 
-Users can click on any location on the globe.
+### 🌎 Interactive Globe
+- Stunning 3D rotating Earth model
+- Click anywhere on the globe
+- Instantly displays:
+  - Latitude & Longitude
+  - Location name (when available)
 
-Displays:
+### 📊 Temperature Data Modes
+- **Anomaly Dataset** — Shows temperature deviation from historical averages  
+- **Absolute Temperature** — Real temperature values for the selected month  
+- Switch between modes with one click
 
-Latitude & Longitude
+### 📈 Temperature Graph
+- Toggleable trajectory graph  
+- Visualizes how global temperatures have changed over time
 
-Location name (if available)
+### 📍 Pin System
+- Click to drop pins on any location  
+- Compare multiple regions simultaneously  
+- One-click **Clear all pins**
 
-📊 Temperature Data Modes
+---
 
-The application provides two temperature visualization modes:
+## 🧩 Project Overview
 
-Anomaly Dataset
+This project transforms complex climate data into an interactive experience. It helps users:
 
-Shows the temperature deviation from historical averages.
+- Understand temperature anomalies  
+- Compare absolute temperatures worldwide  
+- Observe long-term climate trends visually
 
-Absolute Temperature
+---
 
-Displays the actual temperature values for the selected month.
+## 🛠 Technologies Used
 
-Users can switch between these modes dynamically.
+- HTML  
+- CSS  
+- JavaScript  
+- Python  
+- Climate Dataset (NetCDF processed into JSON)
 
-📈 Temperature Graph
+---
 
-Toggle a temperature trajectory graph.
+## 🚀 How to Run
 
-Visualizes how the global temperature changes over time.
-
-📍 Pin System
-
-Clicking on the globe places a pin on the selected location.
-
-Pins allow users to explore multiple regions.
-
-Users can:
-
-Clear all pins
-
-Select new locations
-
-🧩 Project Overview
-
-This project aims to provide a visual and interactive way to explore global temperature data through a globe interface.
-
-It helps users:
-
-Understand temperature anomalies
-
-Compare absolute temperatures
-
-Observe temperature trends over time
-
-🛠 Technologies Used
-
-HTML
-
-CSS
-
-JavaScript
-
-Python
-
-Climate Dataset (NetCDF processed into JSON)
-
-🚀 How to Run
-
-Clone the repository
-Open the project folder
-
+```bash
 git clone <repo-link>
 cd project-folder
 streamlit run app.py
-
-📌 Usage
-
-Open the globe interface.
-
-Click anywhere on the globe.
-
-View:
-
-Coordinates
-
-Location name
-
-Toggle between:
-
-Anomaly dataset
-
-Absolute temperature
-
-Enable the graph to see temperature trajectory.
-
-Clear pins to start exploring new locations.
-
-📷 Preview
-
-# Image-1
-![Globe Preview](images/img1.jpeg)
-
-# Image-2
-![Globe Preview](images/img2.jpeg)
-👥 Team
-
-# demo-video
-
-[![Watch the video](https://img.youtube.com/vi/5i04S-p0FtCl33ie/0.jpg)](https://youtu.be/7hWhUX8s_HE?si=5i04S-p0FtCl33ie)
-
-TEAM-C-LITERALS
