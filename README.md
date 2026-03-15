@@ -52,6 +52,17 @@ This project transforms complex climate data into an interactive experience. It 
 
 ---
 
+## 📷 Images and Videos
+
+- Image1
+  <img src="images/img1.jpeg" alt="Globe Preview 1">
+
+- Image2
+  <img src="images/img2.jpeg" alt="Globe Preview 1">
+
+- Video
+
+
 ## 🚀 How to Run
 
 ```bash
