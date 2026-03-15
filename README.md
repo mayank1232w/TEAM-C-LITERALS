@@ -112,8 +112,9 @@ Clear pins to start exploring new locations.
 
 📷 Preview
 
-(Add screenshots here)
+![Globe Preview](images/img1.jpeg)
 
+![Globe Preview](images/img2.jpeg)
 👥 Team
 
 TEAM-C-LITERALS
