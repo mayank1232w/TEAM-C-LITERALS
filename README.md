@@ -60,8 +60,9 @@ This project transforms complex climate data into an interactive experience. It 
 - Image2
   <img src="images/img2.jpeg" alt="Globe Preview 1">
 
-- Video
-  <img src="https://img.youtube.com/vi/7hWhUX8s_HE/0.jpg" alt="Watch the Demo Video">
+## 🎥 Demo Video
+
+[![Watch the Demo Video](https://img.youtube.com/vi/7hWhUX8s_HE/hqdefault.jpg)](https://www.youtube.com/watch?v=7hWhUX8s_HE)
 
 ## 🚀 How to Run
 
